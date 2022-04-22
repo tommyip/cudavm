@@ -26,6 +26,14 @@ void Program::Pow() {
     this->instructions.push_back(OpCode::Pow);
 }
 
+void Program::Dup() {
+    this->instructions.push_back(OpCode::Dup);
+}
+
+void Program::Rot() {
+    this->instructions.push_back(OpCode::Rot);
+}
+
 void Program::Load() {
     this->instructions.push_back(OpCode::Load);
 }
@@ -50,7 +58,12 @@ void Program::Const(long long int value) {
     this->instructions.push_back(static_cast<OpCode>(index));
 }
 
+void Program::Arg() {
+    this->instructions.push_back(OpCode::Arg);
+}
+
 void Program::eval(
+    std::vector<long long int> args,
     std::vector<int>& account_indices,
     std::vector<Account>& accounts
 ) {
@@ -104,6 +117,22 @@ void Program::eval(
                 stack.push_back(res);
                 break;
             }
+            case OpCode::Dup:
+            {
+                auto a = stack.back();
+                printf("Dup   ( %lld -- %lld %lld )\n", a, a, a);
+                stack.push_back(a);
+                break;
+            }
+            case OpCode::Rot:
+            {
+                auto b = stack.back(); stack.pop_back();
+                auto a = stack.back(); stack.pop_back();
+                printf("Dup   ( %lld %lld -- %lld %lld )\n", a, b, b, a);
+                stack.push_back(b);
+                stack.push_back(a);
+                break;
+            }
             case OpCode::Load:
             {
                 auto m = stack.back(); stack.pop_back();
@@ -128,6 +157,14 @@ void Program::eval(
                 long long int value = this->constant_pool[const_idx];
                 stack.push_back(value);
                 printf("Const ( -- %lld )\n", value);
+                break;
+            }
+            case OpCode::Arg:
+            {
+                auto n = stack.back(); stack.pop_back();
+                auto res = args[n];
+                stack.push_back(res);
+                printf("Arg ( %lld -- %lld )\n", n, res);
                 break;
             }
         }
