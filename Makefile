@@ -4,7 +4,7 @@ cudavm: main.o vm.o
 main.o: main.cpp
 	g++ -Wall -std=c++11 -c main.cpp -o main.o
 
-vm.o: vm.cpp
+vm.o: vm.cpp vm.h
 	g++ -Wall -std=c++11 -c vm.cpp -o vm.o
 
 run: cudavm

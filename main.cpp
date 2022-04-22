@@ -3,22 +3,26 @@
 
 #include "vm.h"
 
-int main() {
-    std::vector<OpCode> instructions{
-        OpCode::Const, Const(0),
-        OpCode::Const, Const(0),
-        OpCode::Load,
-        OpCode::Const, Const(0),
-        OpCode::Const, Const(1),
-        OpCode::Load,
-        OpCode::Mul,
+Program constant_swap() {
+    Program prog;
 
-        OpCode::Const, Const(1),
-        OpCode::Const, Const(0),
-        OpCode::Store
-    };
-    long long int constant_pool[] = { 0, 1, 2 };
-    Program program(instructions, constant_pool);
+    prog.Const(0);
+    prog.Const(0);
+    prog.Load();
+    prog.Const(0);
+    prog.Const(1);
+    prog.Load();
+    prog.Mul();
+
+    prog.Const(1);
+    prog.Const(0);
+    prog.Store();
+
+    return prog;
+}
+
+int main() {
+    Program constant_swap_program = constant_swap();
 
     Account account1;
     account1.state[0] = 42;
@@ -28,7 +32,7 @@ int main() {
 
     std::vector<int> account_indices{0, 1};
 
-    eval(program, account_indices, accounts);
+    constant_swap_program.eval(account_indices, accounts);
     for (unsigned int i = 0; i < account_indices.size(); ++i) {
         std::cout << "Account " << i << ": ";
         accounts[account_indices[i]].display();

@@ -1,3 +1,5 @@
+#pragma once
+
 #include <vector>
 
 const int STACK_SIZE = 256;
@@ -27,29 +29,26 @@ enum class OpCode {
     Const,
 };
 
-OpCode Const(int idx);
-
-class Program {
-public:
-    Program(
-        std::vector<OpCode> instructions,
-        long long int *constant_pool
-    ) : instructions(instructions), constant_pool(constant_pool) {}
-
-    std::vector<OpCode> instructions;
-    long long int *constant_pool;
-};
-
 class Account {
 public:
-    Account() {}
-
     long long int state[ACCOUNT_SIZE];
     void display();
 };
 
-void eval(
-    Program& program,
-    std::vector<int>& account_indices,
-    std::vector<Account>& accounts
-);
+class Program {
+public:
+    void Add();
+    void Sub();
+    void Mul();
+    void Div();
+    void Pow();
+    void Load();
+    void Store();
+    void Const(long long int value);
+
+    void eval(std::vector<int>& account_indices, std::vector<Account>& accounts);
+
+    std::vector<OpCode> instructions;
+    std::vector<long long int> constant_pool;
+};
+
