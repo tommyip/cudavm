@@ -2,8 +2,12 @@
 
 #include <vector>
 
-const int STACK_SIZE = 256;
+#include "utils.h"
+
+const int STACK_SIZE = 64;
 const int ACCOUNT_SIZE = 10;
+const int MAX_INSTRUCTIONS = 256;
+const int MAX_ACCOUNTS = 10;
 const int MAX_CONSTANTS = 32;
 const int MAX_ARUGMENTS = 8;
 
@@ -61,11 +65,14 @@ public:
     void Arg();
 
     void eval(
-        std::vector<long long int> params,
+        std::vector<long long int>& args,
         std::vector<int>& account_indices,
         std::vector<Account>& accounts
     );
 
     std::vector<OpCode> instructions;
     std::vector<long long int> constant_pool;
+
+private:
+    void check_contraints();
 };

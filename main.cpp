@@ -81,13 +81,18 @@ int main() {
     Account pool_tok1;
     pool_tok1.state[0] = 1000000;
     Account pool_tok2;
-    pool_tok2.state[0] = 1500000;
+    pool_tok2.state[0] = 1000000;
 
     std::vector<Account> accounts{swapper_tok1, swapper_tok2, pool_tok1, pool_tok2};
+
     std::vector<int> account_indices{2, 3, 0, 1};
     std::vector<long long int> arguments{1000};
-
     constant_swap_program.eval(arguments, account_indices, accounts);
+
+    std::vector<int> account_indices1{3, 2, 1, 0};
+    std::vector<long long int> arguments1{1000};
+    constant_swap_program.eval(arguments1, account_indices1, accounts);
+
     for (unsigned int i = 0; i < account_indices.size(); ++i) {
         std::cout << "Account " << i << ": ";
         accounts[account_indices[i]].display();
