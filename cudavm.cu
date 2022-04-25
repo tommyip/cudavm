@@ -1,19 +1,28 @@
 #include "cudavm.h"
 
-void CudaVM::schedule_invocation(
-    std::vector<long long int>& params,
-    std::vector<int>& account_indices
-) {
-    this->params.reserve(this->params.size() + MAX_ARUGMENTS);
-    this->params.insert(this->params.end(), params.begin(), params.end());
-    for (int i = 0; i < MAX_ARUGMENTS - params.size(); ++i) {
-        this->params.push_back(0);
-    }
-    this->account_indices.reserve(this->account_indices.size() + MAX_ACCOUNTS);
-    this->account_indices.insert(this->account_indices.end(), account_indices.begin(), account_indices.end());
-    for (int i = 0; i < MAX_ACCOUNTS - account_indices.size(); ++i) {
-        this->account_indices.push_back(0);
-    }
+int CudaVM::register_program(Program program) {
+    int program_id = this->programs.size();
+    this->programs.push_back(program);
+    return program_id;
+}
 
-    ++this->n_calls;
+int CudaVM::register_account(Account account) {
+    int account_index = this->accounts.size();
+    this->accounts.push_back(account);
+    return account_index;
+}
+
+void CudaVM::schedule_invocation(
+    int program_id,
+    std::vector<long long int> *args,
+    std::vector<int> *account_indices
+) {
+    this->invocations.push_back(ScheduledInvocation { program_id, args, account_indices });
+}
+
+void CudaVM::execute_serial() {
+    for (auto& invocation : this->invocations) {
+        Program& program = this->programs[invocation.program_id];
+        program.eval(*(invocation.args), *(invocation.account_indices), this->accounts);
+    }
 }

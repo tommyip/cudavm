@@ -1,6 +1,7 @@
 #include <iostream>
 #include <vector>
 
+#include "cudavm.h"
 #include "vm.h"
 
 // Constant Product AMM
@@ -71,31 +72,45 @@ Program constant_swap() {
 }
 
 int main() {
-    Program constant_swap_program = constant_swap();
+    CudaVM vm;
+
+    int constant_swap_id = vm.register_program(constant_swap());
 
     Account swapper_tok1;
     swapper_tok1.state[0] = 4200;
     Account swapper_tok2;
     swapper_tok2.state[0] = 133700;
+    int swapper_tok1_idx = vm.register_account(swapper_tok1);
+    int swapper_tok2_idx = vm.register_account(swapper_tok2);
 
     Account pool_tok1;
     pool_tok1.state[0] = 1000000;
     Account pool_tok2;
     pool_tok2.state[0] = 1000000;
+    int pool_tok1_idx = vm.register_account(pool_tok1);
+    int pool_tok2_idx = vm.register_account(pool_tok2);
 
-    std::vector<Account> accounts{swapper_tok1, swapper_tok2, pool_tok1, pool_tok2};
+    std::vector<long long int> args1{1000};
+    std::vector<int> account_indices1{pool_tok1_idx, pool_tok2_idx, swapper_tok1_idx, swapper_tok2_idx};
+    vm.schedule_invocation(
+        constant_swap_id,
+        &args1,
+        &account_indices1
+    );
 
-    std::vector<int> account_indices{2, 3, 0, 1};
-    std::vector<long long int> arguments{1000};
-    constant_swap_program.eval(arguments, account_indices, accounts);
+    std::vector<long long int> args2{1000};
+    std::vector<int> account_indices2{pool_tok2_idx, pool_tok1_idx, swapper_tok2_idx, swapper_tok1_idx};
+    vm.schedule_invocation(
+        constant_swap_id,
+        &args2,
+        &account_indices2
+    );
 
-    std::vector<int> account_indices1{3, 2, 1, 0};
-    std::vector<long long int> arguments1{1000};
-    constant_swap_program.eval(arguments1, account_indices1, accounts);
+    vm.execute_serial();
 
-    for (unsigned int i = 0; i < account_indices.size(); ++i) {
+    for (unsigned int i = 0; i < vm.accounts.size(); ++i) {
         std::cout << "Account " << i << ": ";
-        accounts[account_indices[i]].display();
+        vm.accounts[i].display();
         std::cout << std::endl;
     }
 }

@@ -4,20 +4,27 @@
 
 #include "vm.h"
 
+struct ScheduledInvocation {
+    int program_id;
+    std::vector<long long int> *args;
+    std::vector<int> *account_indices;
+};
+
 class CudaVM {
 public:
+    int register_program(Program program);
+    int register_account(Account account);
     void schedule_invocation(
-        std::vector<long long int>& params,
-        std::vector<int>& account_indices
+        int program_id,
+        std::vector<long long int> *args,
+        std::vector<int> *account_indices
     );
     void execute_serial();
     void execute_parallel();
 
-private:
-    std::vector<Program> programs;
     std::vector<Account> accounts;
 
-    int n_calls = 0;
-    std::vector<long long int> params;
-    std::vector<int> account_indices;
+private:
+    std::vector<Program> programs;
+    std::vector<ScheduledInvocation> invocations;
 };
