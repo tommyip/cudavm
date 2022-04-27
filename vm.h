@@ -1,45 +1,51 @@
 #pragma once
 
 #include <vector>
+#include <iostream>
 
 #include "utils.h"
 
-const int STACK_SIZE = 64;
-const int ACCOUNT_SIZE = 10;
-const int MAX_INSTRUCTIONS = 256;
-const int MAX_ACCOUNTS = 10;
-const int MAX_CONSTANTS = 32;
-const int MAX_ARUGMENTS = 8;
+const size_t STACK_SIZE = 64;
+const size_t ACCOUNT_SIZE = 10;
+const size_t MAX_INSTRUCTIONS = 256;
+const size_t MAX_ACCOUNTS = 10;
+const size_t MAX_CONSTANTS = 32;
+const size_t MAX_ARGUMENTS = 8;
 
-enum class OpCode {
+enum class OpCode : unsigned char {
     // ( a b -- a+b )
-    Add,
+    Add = 0,
     // ( a b -- a-b )
-    Sub,
+    Sub = 1,
     // ( a b -- a*b )
-    Mul,
+    Mul = 2,
     // ( a b -- a/b )
-    Div,
+    Div = 3,
     // ( a b -- a^b )
-    Pow,
+    Pow = 4,
     // ( a -- a a )
-    Dup,
+    Dup = 5,
     // ( a b -- b a )
-    Rot,
+    Rot = 6,
     // ( n m -- a )
     // Load m-th value from n-th account
-    Load,
+    Load = 7,
     // ( a n m -- )
     // Store a into the m-th slot of the n-th account
-    Store,
+    Store = 8,
     // ( -- a )
     // The operand is the immediate next pseudo opcode.
     // It should be an index into the constant pool.
-    Const,
+    Const = 9,
     // ( n -- a )
     // Load the n-th argument
-    Arg,
+    Arg = 10,
+
+    // Padding
+    NoOp = 11,
 };
+
+std::ostream& operator<<(std::ostream& os, OpCode const& opcode);
 
 // Account structures:
 // Wallet accounts: balance at slot 0
@@ -66,7 +72,7 @@ public:
 
     void eval(
         std::vector<long long int>& args,
-        std::vector<int>& account_indices,
+        std::vector<unsigned int>& account_indices,
         std::vector<Account>& accounts
     );
 

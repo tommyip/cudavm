@@ -5,6 +5,25 @@
 #include <algorithm>
 
 #include "vm.h"
+#include "cudavm.h"
+
+std::ostream& operator<<(std::ostream& os, OpCode const& opcode) {
+    switch (opcode) {
+        case OpCode::Add: return std::cout << "Add";
+        case OpCode::Sub: return std::cout << "Sub";
+        case OpCode::Mul: return std::cout << "Mul";
+        case OpCode::Div: return std::cout << "Div";
+        case OpCode::Pow: return std::cout << "Pow";
+        case OpCode::Dup: return std::cout << "Dup";
+        case OpCode::Rot: return std::cout << "Rot";
+        case OpCode::Load: return std::cout << "Load";
+        case OpCode::Store: return std::cout << "Store";
+        case OpCode::Const: return std::cout << "Const";
+        case OpCode::Arg: return std::cout << "Arg";
+        case OpCode::NoOp: return std::cout << "NoOp";
+    }
+    return os;
+}
 
 void Program::Add() {
     this->instructions.push_back(OpCode::Add);
@@ -72,10 +91,10 @@ void Program::Arg() {
 
 void Program::eval(
     std::vector<long long int>& args,
-    std::vector<int>& account_indices,
+    std::vector<unsigned int>& account_indices,
     std::vector<Account>& accounts
 ) {
-    if (args.size() > MAX_ARUGMENTS) {
+    if (args.size() > MAX_ARGUMENTS) {
         throw std::length_error("Too many arguments");
     }
     if (account_indices.size() > MAX_ACCOUNTS) {
@@ -85,7 +104,8 @@ void Program::eval(
     std::vector<long long int> stack;
 
     std::vector<OpCode>::iterator pc = this->instructions.begin();
-    while (pc != this->instructions.end()) {
+    bool running = true;
+    while (pc != this->instructions.end() && running) {
         switch (*pc) {
             case OpCode::Add:
             {
@@ -127,7 +147,7 @@ void Program::eval(
             {
                 auto b = stack.back(); stack.pop_back();
                 auto a = stack.back(); stack.pop_back();
-                auto res = (long long int)std::pow((double)a, (double)b);
+                auto res = int_pow(a, b);
                 debug_printf("Pow   ( %lld %lld -- %lld )\n", a, b, res);
                 stack.push_back(res);
                 break;
@@ -143,7 +163,7 @@ void Program::eval(
             {
                 auto b = stack.back(); stack.pop_back();
                 auto a = stack.back(); stack.pop_back();
-                debug_printf("Dup   ( %lld %lld -- %lld %lld )\n", a, b, b, a);
+                debug_printf("Rot   ( %lld %lld -- %lld %lld )\n", a, b, b, a);
                 stack.push_back(b);
                 stack.push_back(a);
                 break;
@@ -168,7 +188,7 @@ void Program::eval(
             }
             case OpCode::Const:
             {
-                int const_idx = static_cast<int>(*(++pc));
+                size_t const_idx = static_cast<size_t>(*(++pc));
                 long long int value = this->constant_pool[const_idx];
                 stack.push_back(value);
                 debug_printf("Const ( -- %lld )\n", value);
@@ -180,6 +200,11 @@ void Program::eval(
                 auto res = args[n];
                 stack.push_back(res);
                 debug_printf("Arg   ( %lld -- %lld )\n", n, res);
+                break;
+            }
+            case OpCode::NoOp:
+            {
+                running = false;
                 break;
             }
         }
@@ -197,7 +222,7 @@ void Program::check_contraints() {
 }
 
 void Account::display() {
-    for (int i = 0; i < ACCOUNT_SIZE; ++i) {
+    for (size_t i = 0; i < ACCOUNT_SIZE; ++i) {
         if (i > 0) {
             std::cout << " ";
         }
