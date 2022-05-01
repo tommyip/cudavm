@@ -1,5 +1,5 @@
 cudavm: main.o vm.o cudavm.o simulator.o
-	nvcc -arch sm_53 main.o vm.o cudavm.o simulator.o -o cudavm
+	nvcc -arch sm_52 main.o vm.o cudavm.o simulator.o -o cudavm
 
 main.o: main.cpp utils.h
 	nvcc -std=c++11 -arch sm_52 -x cu -c main.cpp -o main.o

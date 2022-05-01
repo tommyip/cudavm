@@ -68,3 +68,8 @@ Program constant_swap() {
 
     return prog;
 }
+
+// TODO
+// 0. VM: assertion
+// 1. Payment
+// 2. Oracle

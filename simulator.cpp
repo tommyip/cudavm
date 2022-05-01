@@ -59,20 +59,21 @@ void generate_transactions(
         Swapper& swapper = swappers[swapper_idx_dist(mt)];
         Pool& pool = pools[swapper.pool_idx];
         unsigned int swap_amount = swap_amount_dist(mt);
-        std::vector<long long int> *args = new std::vector<long long int>{swap_amount};
-        std::vector<unsigned int> *account_indices = new std::vector<unsigned int>();
+        std::vector<long long int> args{swap_amount};
+        std::vector<unsigned int> account_indices;
+        account_indices.reserve(4);
         if (direction_dist(mt) == 0) {
             // Swap A to B
-            account_indices->push_back(pool.tok1_reserve_idx);
-            account_indices->push_back(pool.tok2_reserve_idx);
-            account_indices->push_back(swapper.tok1_wallet_idx);
-            account_indices->push_back(swapper.tok2_wallet_idx);
+            account_indices.push_back(pool.tok1_reserve_idx);
+            account_indices.push_back(pool.tok2_reserve_idx);
+            account_indices.push_back(swapper.tok1_wallet_idx);
+            account_indices.push_back(swapper.tok2_wallet_idx);
         } else {
             // Swap B to A
-            account_indices->push_back(pool.tok2_reserve_idx);
-            account_indices->push_back(pool.tok1_reserve_idx);
-            account_indices->push_back(swapper.tok2_wallet_idx);
-            account_indices->push_back(swapper.tok1_wallet_idx);
+            account_indices.push_back(pool.tok2_reserve_idx);
+            account_indices.push_back(pool.tok1_reserve_idx);
+            account_indices.push_back(swapper.tok2_wallet_idx);
+            account_indices.push_back(swapper.tok1_wallet_idx);
         }
         vm.schedule_invocation(constant_swap_id, args, account_indices);
     }

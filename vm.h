@@ -1,6 +1,7 @@
 #pragma once
 
 #include <vector>
+#include <array>
 #include <iostream>
 
 #include "utils.h"
@@ -51,9 +52,11 @@ std::ostream& operator<<(std::ostream& os, OpCode const& opcode);
 // Wallet accounts: balance at slot 0
 class Account {
 public:
-    long long int state[ACCOUNT_SIZE]{0};
+    std::array<long long int, ACCOUNT_SIZE> state;
     void display();
 };
+
+bool operator==(const Account& lhs, const Account& rhs);
 
 class Program {
 public:

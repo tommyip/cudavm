@@ -113,7 +113,7 @@ void Program::eval(
                 auto a = stack.back(); stack.pop_back();
                 auto res = a + b;
                 stack.push_back(res);
-                debug_printf("Add   ( %lld %lld -- %lld )\n", a, b, res);
+                // debug_printf("Add   ( %lld %lld -- %lld )\n", a, b, res);
                 break;
             }
             case OpCode::Sub:
@@ -122,7 +122,7 @@ void Program::eval(
                 auto a = stack.back(); stack.pop_back();
                 auto res = a - b;
                 stack.push_back(res);
-                debug_printf("Sub   ( %lld %lld -- %lld )\n", a, b, res);
+                // debug_printf("Sub   ( %lld %lld -- %lld )\n", a, b, res);
                 break;
             }
             case OpCode::Mul:
@@ -131,7 +131,7 @@ void Program::eval(
                 auto a = stack.back(); stack.pop_back();
                 auto res = a * b;
                 stack.push_back(res);
-                debug_printf("Mul   ( %lld %lld -- %lld )\n", a, b, res);
+                // debug_printf("Mul   ( %lld %lld -- %lld )\n", a, b, res);
                 break;
             }
             case OpCode::Div:
@@ -140,7 +140,7 @@ void Program::eval(
                 auto a = stack.back(); stack.pop_back();
                 auto res = a / b;
                 stack.push_back(res);
-                debug_printf("Div   ( %lld %lld -- %lld )\n", a, b, res);
+                // debug_printf("Div   ( %lld %lld -- %lld )\n", a, b, res);
                 break;
             }
             case OpCode::Pow:
@@ -148,14 +148,14 @@ void Program::eval(
                 auto b = stack.back(); stack.pop_back();
                 auto a = stack.back(); stack.pop_back();
                 auto res = int_pow(a, b);
-                debug_printf("Pow   ( %lld %lld -- %lld )\n", a, b, res);
+                // debug_printf("Pow   ( %lld %lld -- %lld )\n", a, b, res);
                 stack.push_back(res);
                 break;
             }
             case OpCode::Dup:
             {
                 auto a = stack.back();
-                debug_printf("Dup   ( %lld -- %lld %lld )\n", a, a, a);
+                // debug_printf("Dup   ( %lld -- %lld %lld )\n", a, a, a);
                 stack.push_back(a);
                 break;
             }
@@ -163,7 +163,7 @@ void Program::eval(
             {
                 auto b = stack.back(); stack.pop_back();
                 auto a = stack.back(); stack.pop_back();
-                debug_printf("Rot   ( %lld %lld -- %lld %lld )\n", a, b, b, a);
+                // debug_printf("Rot   ( %lld %lld -- %lld %lld )\n", a, b, b, a);
                 stack.push_back(b);
                 stack.push_back(a);
                 break;
@@ -174,7 +174,7 @@ void Program::eval(
                 auto n = stack.back(); stack.pop_back();
                 auto res = accounts[account_indices[n]].state[m];
                 stack.push_back(res);
-                debug_printf("Load  ( %lld %lld -- %lld )\n", n, m, res);
+                // debug_printf("Load  ( %lld %lld -- %lld )\n", n, m, res);
                 break;
             }
             case OpCode::Store:
@@ -183,7 +183,7 @@ void Program::eval(
                 auto n = stack.back(); stack.pop_back();
                 auto a = stack.back(); stack.pop_back();
                 accounts[account_indices[n]].state[m] = a;
-                debug_printf("Store ( %lld %lld %lld -- )\n", a, n, m);
+                // debug_printf("Store ( %lld %lld %lld -- )\n", a, n, m);
                 break;
             }
             case OpCode::Const:
@@ -191,7 +191,7 @@ void Program::eval(
                 size_t const_idx = static_cast<size_t>(*(++pc));
                 long long int value = this->constant_pool[const_idx];
                 stack.push_back(value);
-                debug_printf("Const ( -- %lld )\n", value);
+                // debug_printf("Const ( -- %lld )\n", value);
                 break;
             }
             case OpCode::Arg:
@@ -199,7 +199,7 @@ void Program::eval(
                 auto n = stack.back(); stack.pop_back();
                 auto res = args[n];
                 stack.push_back(res);
-                debug_printf("Arg   ( %lld -- %lld )\n", n, res);
+                // debug_printf("Arg   ( %lld -- %lld )\n", n, res);
                 break;
             }
             case OpCode::NoOp:
@@ -219,6 +219,10 @@ void Program::check_contraints() {
     if (this->constant_pool.size() > MAX_CONSTANTS) {
         throw std::length_error("Too many constants");
     }
+}
+
+bool operator==(const Account& lhs, const Account& rhs) {
+    return lhs.state == rhs.state;
 }
 
 void Account::display() {
