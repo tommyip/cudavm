@@ -22,6 +22,19 @@ struct ScheduledInvocation {
     std::vector<unsigned int> account_indices;
 };
 
+class Chunks {
+    const int max_chunks;
+    const int max_chunk_size;
+    std::vector<bool> allocated_accounts;
+
+public:
+    std::vector<std::vector<int>> gpu_indices;
+    std::vector<int> cpu_indices;
+
+    Chunks(int max_chunks, int max_chunk_size);
+    void add_invocation(int i, ScheduledInvocation& invocation);
+};
+
 class CudaVM {
 public:
     unsigned int register_program(Program program);
@@ -41,7 +54,7 @@ public:
     // bool group_programs = false; // TODO: Write more programs!
 
 private:
-    std::vector<std::vector<int>> optimize_invocation_order();
+    Chunks* optimize_invocation_order();
     void execute_serial(std::vector<int>& invocation_indices);
 
     std::vector<Program> programs;

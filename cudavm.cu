@@ -189,14 +189,14 @@ void CudaVM::execute_parallel() {
     debug_printf("execute_parallel n_programs=%d n_invocations=%d\n", n_programs, n_invocations);
 
     auto opt_start = clock_start();
-    std::vector<std::vector<int>> chunked_invocations = this->optimize_invocation_order();
+    Chunks *chunks = this->optimize_invocation_order();
     auto opt_secs = clock_end(opt_start);
     debug_printf("chunks=%d max_chunk=%d cpu_chunk_size=%d\n",
-        chunked_invocations.size() - 1,
-        chunked_invocations[0].size(),
-        chunked_invocations[chunked_invocations.size() - 1].size());
+        chunks->gpu_indices.size() - 1,
+        chunks->gpu_indices[0].size(),
+        chunks->cpu_indices.size());
     debug_printf("txns optimization duration: %fs\n", opt_secs);
-    int max_invocation_size = sizeof(int) * chunked_invocations[0].size();
+    int max_invocation_size = sizeof(int) * chunks->gpu_indices[0].size();
     int *d_invocations;
     gpuErrchk(cudaMalloc(&d_invocations, max_invocation_size));
 
@@ -274,9 +274,8 @@ void CudaVM::execute_parallel() {
 
     dim3 block_dim(BLOCK_SIZE, 1, 1);
 
-    // Execute the last (merged) chunk on CPU instead
-    for (int i = 0; i < chunked_invocations.size() - 1; ++i) {
-        auto& invocations = chunked_invocations[i];
+    for (int i = 0; i < chunks->gpu_indices.size(); ++i) {
+        auto& invocations = chunks->gpu_indices[i];
         gpuErrchk(cudaMemcpy(d_invocations, invocations.data(), sizeof(int) * invocations.size(), cudaMemcpyHostToDevice));
 
         dim3 grid_dim(ceil_div(invocations.size(), BLOCK_SIZE), 1, 1);
@@ -296,72 +295,56 @@ void CudaVM::execute_parallel() {
     cudaMemcpy(this->accounts.data(), d_global_account, global_account_size, cudaMemcpyDeviceToHost);
     cudaDeviceSynchronize();
 
-    this->execute_serial(chunked_invocations[chunked_invocations.size() - 1]);
+    if (chunks->cpu_indices.size() > 0) {
+        this->execute_serial(chunks->cpu_indices);
+    }
 }
 
-struct InvocationChunk {
-    std::vector<int> invocation_indices;
-    std::vector<bool> allocated_accounts;
+Chunks::Chunks(int max_chunks, int max_chunk_size)
+    : max_chunks(max_chunks), max_chunk_size(max_chunk_size) {}
 
-    InvocationChunk(int n_accounts) : allocated_accounts(n_accounts, false) {}
+void Chunks::add_invocation(int i, ScheduledInvocation& invocation) {
+    int j;
+    for (j = 0; j < this->gpu_indices.size(); ++j) {
+        bool is_disjoint = true;
 
-    bool is_disjoint(const ScheduledInvocation& invocation) {
-        for (int i = 0; i < invocation.account_indices.size(); ++i) {
-            if (this->allocated_accounts[invocation.account_indices[i]]) {
-                return false;
+        for (int k = 0; k < invocation.account_indices.size(); ++k) {
+            if (this->allocated_accounts[j * this->max_chunk_size + invocation.account_indices[k]]) {
+                is_disjoint = false;
+                break;
             }
         }
-        return true;
-    }
-
-    void add_invocation(int idx, ScheduledInvocation& invocation) {
-        this->invocation_indices.push_back(idx);
-        for (int i = 0; i < invocation.account_indices.size(); ++i) {
-            this->allocated_accounts[invocation.account_indices[i]] = true;
+        if (is_disjoint) {
+            for (int k = 0; k < invocation.account_indices.size(); ++k) {
+                this->allocated_accounts[j * this->max_chunk_size + invocation.account_indices[k]] = true;
+            }
+            this->gpu_indices[j].push_back(i);
+            return;
         }
     }
-};
+    if (j < this->max_chunks) {
+        this->allocated_accounts.resize(this->allocated_accounts.size() + this->max_chunk_size, false);
+        for (int k = 0; k < invocation.account_indices.size(); ++k) {
+            this->allocated_accounts[j * this->max_chunk_size + invocation.account_indices[k]] = true;
+        }
+        this->gpu_indices.push_back(std::vector<int>{i});
+    } else {
+        this->cpu_indices.push_back(i);
+    }
+}
 
 // 1. Group transactions s.t. all accounts in each chunk are disjoint
 //    This prevents race condition
 // 2. Group transactions within each chunk by program into thread blocks
 // 3. Chunks smaller then BLOCK_SIZE are merged together to be executed on CPU
-std::vector<std::vector<int>> CudaVM::optimize_invocation_order() {
-    std::vector<InvocationChunk> chunks;
+Chunks* CudaVM::optimize_invocation_order() {
+    Chunks *chunks = new Chunks(256, this->accounts.size());
     for (int i = 0; i < this->invocations.size(); ++i) {
-        ScheduledInvocation& invocation = this->invocations[i];
-        bool inserted = false;
-        for (int j = 0; j < chunks.size(); ++j) {
-            auto& chunk = chunks[j];
-            if (chunk.is_disjoint(invocation)) {
-                chunk.add_invocation(i, invocation);
-                inserted = true;
-                break;
-            }
-        }
-        if (!inserted) {
-            chunks.push_back(InvocationChunk(this->accounts.size()));
-            chunks[chunks.size() - 1].add_invocation(i, invocation);
-        }
+        chunks->add_invocation(i, this->invocations[i]);
     }
-    std::vector<std::vector<int>> result;
-    bool started_merging = false;
-    for (auto& chunk : chunks) {
-        if (chunk.invocation_indices.size() >= BLOCK_SIZE) {
-            result.push_back(chunk.invocation_indices);
-        } else if (!started_merging) {
-            result.push_back(chunk.invocation_indices);
-            started_merging = true;
-        } else {
-            std::copy(
-                chunk.invocation_indices.begin(),
-                chunk.invocation_indices.end(),
-                std::back_inserter(result[result.size() - 1])
-            );
-        }
-    }
-    // for (int i = 0; i < result.size(); ++i) {
-    //     printf("Chunk %d has %d invocations\n", i, result[i].size());
+    // for (int i = 0; i < chunks->gpu_indices.size(); ++i) {
+    //     printf("Chunk %d has %d invocations\n", i, chunks->gpu_indices[i].size());
     // }
-    return result;
+    // printf("CPU chunk has %d invocations\n", chunks->cpu_indices.size());
+    return chunks;
 }
