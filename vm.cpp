@@ -70,7 +70,7 @@ void Program::Store() {
     this->check_contraints();
 }
 
-void Program::Const(long long int value) {
+void Program::Const(int value) {
     auto it = std::find(this->constant_pool.begin(), this->constant_pool.end(), value);
     int index;
     if (it != this->constant_pool.end()) {
@@ -90,8 +90,8 @@ void Program::Arg() {
 }
 
 void Program::eval(
-    std::vector<long long int>& args,
-    std::vector<unsigned int>& account_indices,
+    std::vector<int>& args,
+    std::vector<int>& account_indices,
     std::vector<Account>& accounts
 ) {
     if (args.size() > MAX_ARGUMENTS) {
@@ -101,7 +101,7 @@ void Program::eval(
         throw std::length_error("Too many account indices");
     }
 
-    std::vector<long long int> stack;
+    std::vector<int> stack;
 
     std::vector<OpCode>::iterator pc = this->instructions.begin();
     bool running = true;
@@ -189,7 +189,7 @@ void Program::eval(
             case OpCode::Const:
             {
                 size_t const_idx = static_cast<size_t>(*(++pc));
-                long long int value = this->constant_pool[const_idx];
+                int value = this->constant_pool[const_idx];
                 stack.push_back(value);
                 // debug_printf("Const ( -- %lld )\n", value);
                 break;

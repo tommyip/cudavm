@@ -4,11 +4,11 @@
 
 // Credit: https://stackoverflow.com/a/1505791
 __host__ __device__
-long long int int_pow(long long int base, long long int exp) {
+int int_pow(int base, int exp) {
     if (exp == 0) return 1;
     if (exp == 1) return base;
 
-    long long int tmp = pow(base, exp / 2);
+    int tmp = pow(base, exp / 2);
     if (exp % 2 == 0) return tmp * tmp;
     else return base * tmp * tmp;
 }
@@ -18,23 +18,23 @@ void cuda_eval(
     int *invocations,
     int n_invocations,
     OpCode *global_instructions,
-    long long int *global_constant_pool,
-    unsigned int *global_program_id,
-    long long int *global_args,
-    unsigned int *global_account_indices,
-    long long int *global_account
+    int *global_constant_pool,
+    int *global_program_id,
+    int *global_args,
+    int *global_account_indices,
+    int *global_account
 ) {
     int tid = blockDim.x * blockIdx.x + threadIdx.x;
     if (tid >= n_invocations) return;
     int invocation_id = invocations[tid];
 
-    unsigned int program_id = global_program_id[invocation_id];
+    int program_id = global_program_id[invocation_id];
     OpCode *instructions = &global_instructions[program_id * MAX_INSTRUCTIONS];
-    long long int *constant_pool = &global_constant_pool[program_id * MAX_CONSTANTS];
-    long long int *args = &global_args[invocation_id * MAX_ARGUMENTS];
-    unsigned int *account_indices = &global_account_indices[invocation_id * MAX_ACCOUNTS];
+    int *constant_pool = &global_constant_pool[program_id * MAX_CONSTANTS];
+    int *args = &global_args[invocation_id * MAX_ARGUMENTS];
+    int *account_indices = &global_account_indices[invocation_id * MAX_ACCOUNTS];
 
-    long long int stack[STACK_SIZE];
+    int stack[STACK_SIZE];
     size_t sp = 0;
     size_t pc = 0;
     bool running = true;
@@ -148,22 +148,22 @@ void cuda_eval(
     }
 }
 
-unsigned int CudaVM::register_program(Program program) {
-    unsigned int program_id = this->programs.size();
+int CudaVM::register_program(Program program) {
+    int program_id = this->programs.size();
     this->programs.push_back(program);
     return program_id;
 }
 
-unsigned int CudaVM::register_account(Account account) {
-    unsigned int account_index = this->accounts.size();
+int CudaVM::register_account(Account account) {
+    int account_index = this->accounts.size();
     this->accounts.push_back(account);
     return account_index;
 }
 
 void CudaVM::schedule_invocation(
-    unsigned int program_id,
-    std::vector<long long int>& args,
-    std::vector<unsigned int>& account_indices
+    int program_id,
+    std::vector<int>& args,
+    std::vector<int>& account_indices
 ) {
     this->invocations.push_back(ScheduledInvocation { program_id, args, account_indices });
 }
@@ -203,43 +203,43 @@ void CudaVM::execute_parallel() {
     std::vector<OpCode> h_global_instructions;
     h_global_instructions.reserve(n_programs * MAX_INSTRUCTIONS);
 
-    std::vector<long long int> h_global_constant_pool;
+    std::vector<int> h_global_constant_pool;
     h_global_constant_pool.reserve(n_programs * MAX_CONSTANTS);
 
     for (auto& program : this->programs) {
         push_with_padding(program.instructions, h_global_instructions, MAX_INSTRUCTIONS, OpCode::NoOp);
-        push_with_padding(program.constant_pool, h_global_constant_pool, MAX_CONSTANTS, 0ll);
+        push_with_padding(program.constant_pool, h_global_constant_pool, MAX_CONSTANTS, 0);
     }
 
-    std::vector<unsigned int> h_global_program_id;
+    std::vector<int> h_global_program_id;
     h_global_program_id.reserve(n_invocations);
 
-    std::vector<long long int> h_global_args;
+    std::vector<int> h_global_args;
     h_global_args.reserve(n_invocations * MAX_ARGUMENTS);
 
-    std::vector<unsigned int> h_global_account_indices;
+    std::vector<int> h_global_account_indices;
     h_global_account_indices.reserve(n_invocations * MAX_ACCOUNTS);
 
     for (auto& invocation : this->invocations) {
         h_global_program_id.push_back(invocation.program_id);
 
-        push_with_padding(invocation.args, h_global_args, MAX_ARGUMENTS, 0ll);
-        push_with_padding(invocation.account_indices, h_global_account_indices, MAX_ACCOUNTS, 0u);
+        push_with_padding(invocation.args, h_global_args, MAX_ARGUMENTS, 0);
+        push_with_padding(invocation.account_indices, h_global_account_indices, MAX_ACCOUNTS, 0);
     }
 
     OpCode *d_global_instructions;
-    long long int *d_global_constant_pool;
-    unsigned int *d_global_program_id;
-    long long int *d_global_args;
-    unsigned int *d_global_account_indices;
-    long long int *d_global_account;
+    int *d_global_constant_pool;
+    int *d_global_program_id;
+    int *d_global_args;
+    int *d_global_account_indices;
+    int *d_global_account;
 
     size_t global_instructions_size = sizeof(OpCode) * h_global_instructions.size();
-    size_t global_constant_pool_size = sizeof(long long int) * h_global_constant_pool.size();
-    size_t global_program_id_size = sizeof(unsigned int) * h_global_program_id.size();
-    size_t global_args_size = sizeof(long long int) * h_global_args.size();
-    size_t global_account_indices_size = sizeof(unsigned int) * h_global_account_indices.size();
-    size_t global_account_size = sizeof(long long int) * this->accounts.size() * ACCOUNT_SIZE;
+    size_t global_constant_pool_size = sizeof(int) * h_global_constant_pool.size();
+    size_t global_program_id_size = sizeof(int) * h_global_program_id.size();
+    size_t global_args_size = sizeof(int) * h_global_args.size();
+    size_t global_account_indices_size = sizeof(int) * h_global_account_indices.size();
+    size_t global_account_size = sizeof(int) * this->accounts.size() * ACCOUNT_SIZE;
 
     // #if DEBUG
     // std::cout << "h_global_instructions: ";
@@ -253,7 +253,7 @@ void CudaVM::execute_parallel() {
     // std::cout << "h_global_account_indices: ";
     // print_vector(h_global_account_indices);
     // std::cout << "accounts: ";
-    // std::vector<long long int> global_accounts(this->accounts.size()*ACCOUNT_SIZE);
+    // std::vector<int> global_accounts(this->accounts.size()*ACCOUNT_SIZE);
     // memcpy(global_accounts.data(), this->accounts.data(), global_account_size);
     // print_vector(global_accounts);
     // #endif

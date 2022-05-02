@@ -5,13 +5,13 @@
 #include "simulator.h"
 
 struct Pool {
-    unsigned int tok1_reserve_idx;
-    unsigned int tok2_reserve_idx;
+    int tok1_reserve_idx;
+    int tok2_reserve_idx;
 };
 
 struct Swapper {
-    unsigned int tok1_wallet_idx;
-    unsigned int tok2_wallet_idx;
+    int tok1_wallet_idx;
+    int tok2_wallet_idx;
     size_t pool_idx;
 };
 
@@ -24,17 +24,17 @@ void generate_transactions(
     std::random_device rd;
     std::mt19937 mt(rd());
 
-    unsigned int constant_swap_id = vm.register_program(constant_swap());
+    int constant_swap_id = vm.register_program(constant_swap());
 
     std::normal_distribution<double> pool_dist(10000000000.0, 100000.0);
     std::vector<Pool> pools;
     for (size_t i = 0; i < n_pools; ++i) {
         Account pool_tok1;
-        pool_tok1.state[0] = (unsigned int)pool_dist(mt);
+        pool_tok1.state[0] = (int)pool_dist(mt);
         Account pool_tok2;
-        pool_tok2.state[0] = (unsigned int)pool_dist(mt);
-        unsigned int tok1_reserve_idx = vm.register_account(pool_tok1);
-        unsigned int tok2_reserve_idx = vm.register_account(pool_tok2);
+        pool_tok2.state[0] = (int)pool_dist(mt);
+        int tok1_reserve_idx = vm.register_account(pool_tok1);
+        int tok2_reserve_idx = vm.register_account(pool_tok2);
         pools.push_back(Pool { tok1_reserve_idx, tok2_reserve_idx });
     }
 
@@ -43,11 +43,11 @@ void generate_transactions(
     std::vector<Swapper> swappers;
     for (size_t i = 0; i < n_swappers; ++i) {
         Account swapper_tok1;
-        swapper_tok1.state[0] = (unsigned int)swapper_dist(mt);
+        swapper_tok1.state[0] = (int)swapper_dist(mt);
         Account swapper_tok2;
-        swapper_tok2.state[0] = (unsigned int)swapper_dist(mt);
-        unsigned int tok1_wallet_idx = vm.register_account(swapper_tok1);
-        unsigned int tok2_wallet_idx = vm.register_account(swapper_tok2);
+        swapper_tok2.state[0] = (int)swapper_dist(mt);
+        int tok1_wallet_idx = vm.register_account(swapper_tok1);
+        int tok2_wallet_idx = vm.register_account(swapper_tok2);
         size_t pool_idx = pool_idx_dist(mt);
         swappers.push_back(Swapper { tok1_wallet_idx, tok2_wallet_idx, pool_idx });
     }
@@ -58,9 +58,8 @@ void generate_transactions(
     for (size_t i = 0; i < n_transactions; ++i) {
         Swapper& swapper = swappers[swapper_idx_dist(mt)];
         Pool& pool = pools[swapper.pool_idx];
-        unsigned int swap_amount = swap_amount_dist(mt);
-        std::vector<long long int> args{swap_amount};
-        std::vector<unsigned int> account_indices;
+        std::vector<int> args{(int)swap_amount_dist(mt)};
+        std::vector<int> account_indices;
         account_indices.reserve(4);
         if (direction_dist(mt) == 0) {
             // Swap A to B

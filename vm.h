@@ -52,7 +52,7 @@ std::ostream& operator<<(std::ostream& os, OpCode const& opcode);
 // Wallet accounts: balance at slot 0
 class Account {
 public:
-    std::array<long long int, ACCOUNT_SIZE> state;
+    std::array<int, ACCOUNT_SIZE> state;
     void display();
 };
 
@@ -70,17 +70,17 @@ public:
     void Rot();
     void Load();
     void Store();
-    void Const(long long int value);
+    void Const(int value);
     void Arg();
 
     void eval(
-        std::vector<long long int>& args,
-        std::vector<unsigned int>& account_indices,
+        std::vector<int>& args,
+        std::vector<int>& account_indices,
         std::vector<Account>& accounts
     );
 
     std::vector<OpCode> instructions;
-    std::vector<long long int> constant_pool;
+    std::vector<int> constant_pool;
 
 private:
     void check_contraints();

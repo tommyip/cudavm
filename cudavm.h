@@ -17,9 +17,9 @@ inline void gpuAssert(cudaError_t code, const char *file, int line, bool abort=t
 const size_t BLOCK_SIZE = 256;
 
 struct ScheduledInvocation {
-    unsigned int program_id;
-    std::vector<long long int> args;
-    std::vector<unsigned int> account_indices;
+    int program_id;
+    std::vector<int> args;
+    std::vector<int> account_indices;
 };
 
 class Chunks {
@@ -37,12 +37,12 @@ public:
 
 class CudaVM {
 public:
-    unsigned int register_program(Program program);
-    unsigned int register_account(Account account);
+    int register_program(Program program);
+    int register_account(Account account);
     void schedule_invocation(
-        unsigned int program_id,
-        std::vector<long long int>& args,
-        std::vector<unsigned int>& account_indices
+        int program_id,
+        std::vector<int>& args,
+        std::vector<int>& account_indices
     );
     void execute_serial();
     void execute_parallel();
@@ -76,4 +76,4 @@ void push_with_padding(
 }
 
 __host__ __device__
-long long int int_pow(long long int base, long long int exp);
+int int_pow(int base, int exp);
