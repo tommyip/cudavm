@@ -6,11 +6,11 @@
 
 #include "utils.h"
 
-const size_t STACK_SIZE = 64;
-const size_t ACCOUNT_SIZE = 10;
+const size_t STACK_SIZE = 16;
+const size_t ACCOUNT_SIZE = 8;
 const size_t MAX_INSTRUCTIONS = 256;
-const size_t MAX_ACCOUNTS = 10;
-const size_t MAX_CONSTANTS = 32;
+const size_t MAX_ACCOUNTS = 8;
+const size_t MAX_CONSTANTS = 8;
 const size_t MAX_ARGUMENTS = 8;
 
 enum class OpCode : unsigned char {
@@ -24,26 +24,36 @@ enum class OpCode : unsigned char {
     Div = 3,
     // ( a b -- a^b )
     Pow = 4,
+    // ( a b -- a<b )
+    // 1 if a < b, 0 otherwise
+    Lt = 5,
+    // ( 0 -- 1 )
+    // ( a -- 0 )
+    Not = 6,
     // ( a -- a a )
-    Dup = 5,
+    Dup = 7,
     // ( a b -- b a )
-    Rot = 6,
+    Rot = 8,
     // ( n m -- a )
     // Load m-th value from n-th account
-    Load = 7,
+    Load = 9,
     // ( a n m -- )
     // Store a into the m-th slot of the n-th account
-    Store = 8,
+    Store = 10,
     // ( -- a )
     // The operand is the immediate next pseudo opcode.
     // It should be an index into the constant pool.
-    Const = 9,
+    Const = 11,
     // ( n -- a )
     // Load the n-th argument
-    Arg = 10,
+    Arg = 12,
+    // ( a -- )
+    // Return from the program if `a` is 0
+    // All the account changes will be discarded
+    Assert = 13,
 
     // Padding
-    NoOp = 11,
+    NoOp = 14,
 };
 
 std::ostream& operator<<(std::ostream& os, OpCode const& opcode);
@@ -66,12 +76,15 @@ public:
     void Mul();
     void Div();
     void Pow();
+    void Lt();
+    void Not();
     void Dup();
     void Rot();
     void Load();
     void Store();
     void Const(int value);
     void Arg();
+    void Assert();
 
     void eval(
         std::vector<int>& args,

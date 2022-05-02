@@ -14,7 +14,7 @@ inline void gpuAssert(cudaError_t code, const char *file, int line, bool abort=t
 
 #include "vm.h"
 
-const size_t BLOCK_SIZE = 256;
+const size_t BLOCK_SIZE = 128;
 
 struct ScheduledInvocation {
     int program_id;

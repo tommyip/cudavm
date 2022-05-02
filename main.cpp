@@ -22,6 +22,12 @@ int main() {
     size_t cpu_tps = (double)N_TXNS / cpu_secs;
     printf("CPU | Time elapsed: %fs | TPS: %d\n", cpu_secs, cpu_tps);
 
+    // for (size_t i = 0; i < vm.accounts.size(); ++i) {
+    //     std::cout << "Account " << i << ": ";
+    //     vm.accounts[i].display();
+    //     std::cout << std::endl;
+    // }
+
     const std::vector<Account> cpu_accounts_snapshot(vm.accounts);
     vm.accounts = accounts_backup;
 
@@ -40,9 +46,4 @@ int main() {
         printf("CPU & GPU accounts state NOT equal");
     }
 
-    // for (size_t i = 0; i < vm.accounts.size(); ++i) {
-    //     std::cout << "Account " << i << ": ";
-    //     vm.accounts[i].display();
-    //     std::cout << std::endl;
-    // }
 }

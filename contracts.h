@@ -47,6 +47,8 @@ Program constant_swap() {
     prog.Const(1); prog.Const(0); prog.Load();
     prog.Rot();
     prog.Sub();
+    // Check resulting reserve >= 0
+    prog.Dup(); prog.Const(-1); prog.Rot(); prog.Lt(); prog.Assert();
     prog.Const(1); prog.Const(0); prog.Store();
 
     // Credit destination wallet
@@ -64,6 +66,8 @@ Program constant_swap() {
     prog.Const(2); prog.Const(0); prog.Load();
     prog.Const(0); prog.Arg();
     prog.Sub();
+    // Check resulting balance >= 0
+    prog.Dup(); prog.Const(-1); prog.Rot(); prog.Lt(); prog.Assert();
     prog.Const(2); prog.Const(0); prog.Store();
 
     return prog;

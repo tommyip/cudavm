@@ -14,12 +14,15 @@ std::ostream& operator<<(std::ostream& os, OpCode const& opcode) {
         case OpCode::Mul: return std::cout << "Mul";
         case OpCode::Div: return std::cout << "Div";
         case OpCode::Pow: return std::cout << "Pow";
+        case OpCode::Lt: return std::cout << "Lt";
+        case OpCode::Not: return std::cout << "Not";
         case OpCode::Dup: return std::cout << "Dup";
         case OpCode::Rot: return std::cout << "Rot";
         case OpCode::Load: return std::cout << "Load";
         case OpCode::Store: return std::cout << "Store";
         case OpCode::Const: return std::cout << "Const";
         case OpCode::Arg: return std::cout << "Arg";
+        case OpCode::Assert: return std::cout << "Assert";
         case OpCode::NoOp: return std::cout << "NoOp";
     }
     return os;
@@ -47,6 +50,16 @@ void Program::Div() {
 
 void Program::Pow() {
     this->instructions.push_back(OpCode::Pow);
+    this->check_contraints();
+}
+
+void Program::Lt() {
+    this->instructions.push_back(OpCode::Lt);
+    this->check_contraints();
+}
+
+void Program::Not() {
+    this->instructions.push_back(OpCode::Not);
     this->check_contraints();
 }
 
@@ -89,6 +102,11 @@ void Program::Arg() {
     this->check_contraints();
 }
 
+void Program::Assert() {
+    this->instructions.push_back(OpCode::Assert);
+    this->check_contraints();
+}
+
 void Program::eval(
     std::vector<int>& args,
     std::vector<int>& account_indices,
@@ -99,6 +117,11 @@ void Program::eval(
     }
     if (account_indices.size() > MAX_ACCOUNTS) {
         throw std::length_error("Too many account indices");
+    }
+
+    std::vector<Account> local_accounts;
+    for (auto idx : account_indices) {
+        local_accounts.push_back(accounts[idx]);
     }
 
     std::vector<int> stack;
@@ -152,6 +175,26 @@ void Program::eval(
                 stack.push_back(res);
                 break;
             }
+            case OpCode::Lt:
+            {
+                auto b = stack.back(); stack.pop_back();
+                auto a = stack.back(); stack.pop_back();
+                long long int res = a < b;
+                // debug_printf("Lt    ( %lld %lld -- %lld )\n", a, b, res);
+                stack.push_back(res);
+                break;
+            }
+            case OpCode::Not:
+            {
+                auto a = stack.back(); stack.pop_back();
+                long long int res = 0;
+                if (a == 0) {
+                    res = 1;
+                }
+                // debug_printf("Not   ( %lld -- %lld )\n", a, res);
+                stack.push_back(res);
+                break;
+            }
             case OpCode::Dup:
             {
                 auto a = stack.back();
@@ -172,7 +215,7 @@ void Program::eval(
             {
                 auto m = stack.back(); stack.pop_back();
                 auto n = stack.back(); stack.pop_back();
-                auto res = accounts[account_indices[n]].state[m];
+                auto res = local_accounts[n].state[m];
                 stack.push_back(res);
                 // debug_printf("Load  ( %lld %lld -- %lld )\n", n, m, res);
                 break;
@@ -182,7 +225,7 @@ void Program::eval(
                 auto m = stack.back(); stack.pop_back();
                 auto n = stack.back(); stack.pop_back();
                 auto a = stack.back(); stack.pop_back();
-                accounts[account_indices[n]].state[m] = a;
+                local_accounts[n].state[m] = a;
                 // debug_printf("Store ( %lld %lld %lld -- )\n", a, n, m);
                 break;
             }
@@ -202,6 +245,14 @@ void Program::eval(
                 // debug_printf("Arg   ( %lld -- %lld )\n", n, res);
                 break;
             }
+            case OpCode::Assert:
+            {
+                auto a = stack.back(); stack.pop_back();
+                if (a == 0) {
+                    return;
+                }
+                break;
+            }
             case OpCode::NoOp:
             {
                 running = false;
@@ -209,6 +260,10 @@ void Program::eval(
             }
         }
         ++pc;
+    }
+
+    for (int i = 0; i < account_indices.size(); ++i) {
+        accounts[account_indices[i]] = local_accounts[i];
     }
 }
 

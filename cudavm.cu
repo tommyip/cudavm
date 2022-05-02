@@ -34,7 +34,21 @@ void cuda_eval(
     int *args = &global_args[invocation_id * MAX_ARGUMENTS];
     int *account_indices = &global_account_indices[invocation_id * MAX_ACCOUNTS];
 
-    int stack[STACK_SIZE];
+    __shared__ int local_accounts[MAX_ACCOUNTS * ACCOUNT_SIZE * BLOCK_SIZE];
+    // Copy accounts to local scratch space
+    for (int i = 0; i < MAX_ACCOUNTS; ++i) {
+        int account_idx = account_indices[i];
+        if (account_idx == -1) break;
+
+        memcpy(
+            &local_accounts[MAX_ACCOUNTS * ACCOUNT_SIZE * threadIdx.x + ACCOUNT_SIZE * i],
+            &global_account[ACCOUNT_SIZE * account_idx],
+            sizeof(int) * ACCOUNT_SIZE
+        );
+    }
+
+    __shared__ int block_stack[STACK_SIZE * BLOCK_SIZE];
+    int *stack = &block_stack[STACK_SIZE * threadIdx.x];
     size_t sp = 0;
     size_t pc = 0;
     bool running = true;
@@ -85,6 +99,26 @@ void cuda_eval(
                 // debug_printf("Pow   ( %lld %lld -- %lld )\n", a, b, res);
                 break;
             }
+            case OpCode::Lt:
+            {
+                auto b = stack[--sp];
+                auto a = stack[--sp];
+                long long int res = a < b;
+                // debug_printf("Lt    ( %lld %lld -- %lld )\n", a, b, res);
+                stack[sp++] = res;
+                break;
+            }
+            case OpCode::Not:
+            {
+                auto a = stack[sp - 1];
+                long long int res = 0;
+                if (a == 0) {
+                    res = 1;
+                }
+                // debug_printf("Not   ( %lld %lld -- %lld )\n", a, b, res);
+                stack[sp - 1] = res;
+                break;
+            }
             case OpCode::Dup:
             {
                 auto a = stack[sp - 1];
@@ -104,8 +138,7 @@ void cuda_eval(
             {
                 auto m = stack[--sp];
                 auto n = stack[--sp];
-                auto account_idx = account_indices[n];
-                auto *account = &global_account[account_idx * ACCOUNT_SIZE];
+                auto *account = &local_accounts[MAX_ACCOUNTS * ACCOUNT_SIZE * threadIdx.x + ACCOUNT_SIZE * n];
                 auto res = account[m];
                 stack[sp++] = res;
                 // debug_printf("Load  ( %lld %lld -- %lld )\n", n, m, res);
@@ -116,8 +149,7 @@ void cuda_eval(
                 auto m = stack[--sp];
                 auto n = stack[--sp];
                 auto a = stack[--sp];
-                auto account_idx = account_indices[n];
-                auto *account = &global_account[account_idx * ACCOUNT_SIZE];
+                auto *account = &local_accounts[MAX_ACCOUNTS * ACCOUNT_SIZE * threadIdx.x + ACCOUNT_SIZE * n];
                 account[m] = a;
                 // debug_printf("Store ( %lld %lld %lld -- )\n", a, n, m);
                 break;
@@ -138,6 +170,14 @@ void cuda_eval(
                 // debug_printf("Arg   ( %lld -- %lld )\n", n, res);
                 break;
             }
+            case OpCode::Assert:
+            {
+                auto a = stack[--sp];
+                if (a == 0) {
+                    return;
+                }
+                break;
+            }
             case OpCode::NoOp:
             {
                 running = false;
@@ -145,6 +185,18 @@ void cuda_eval(
             }
         }
         ++pc;
+    }
+
+    // Write modified accounts
+    for (int i = 0; i < MAX_ACCOUNTS; ++i) {
+        int account_idx = account_indices[i];
+        if (account_idx == -1) break;
+
+        memcpy(
+            &global_account[ACCOUNT_SIZE * account_idx],
+            &local_accounts[MAX_ACCOUNTS * ACCOUNT_SIZE * threadIdx.x + ACCOUNT_SIZE * i],
+            sizeof(int) * ACCOUNT_SIZE
+        );
     }
 }
 
@@ -224,7 +276,7 @@ void CudaVM::execute_parallel() {
         h_global_program_id.push_back(invocation.program_id);
 
         push_with_padding(invocation.args, h_global_args, MAX_ARGUMENTS, 0);
-        push_with_padding(invocation.account_indices, h_global_account_indices, MAX_ACCOUNTS, 0);
+        push_with_padding(invocation.account_indices, h_global_account_indices, MAX_ACCOUNTS, -1);
     }
 
     OpCode *d_global_instructions;
