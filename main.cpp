@@ -5,14 +5,17 @@
 #include "cudavm.h"
 #include "vm.h"
 #include "simulator.h"
+#include "contracts.h"
 
-const size_t N_POOLS = 10000;
+const size_t N_POOLS = 1000;
 const size_t N_SWAPPERS = 10000;
-const size_t N_TXNS = 1000000;
+const size_t N_SWAP_TXNS = 10000;
+const size_t N_PAYMENT_TXNS = 10000;
+const size_t N_TXNS = N_SWAP_TXNS + N_PAYMENT_TXNS;
 
 int main() {
     CudaVM vm;
-    generate_transactions(vm, N_POOLS, N_SWAPPERS, N_TXNS);
+    generate_transactions(vm, N_POOLS, N_SWAPPERS, N_SWAP_TXNS, N_PAYMENT_TXNS);
 
     const std::vector<Account> accounts_backup(vm.accounts);
 
@@ -40,10 +43,15 @@ int main() {
     double speedup = cpu_secs / gpu_secs;
     printf("Speedup: %fx\n", speedup);
 
-    if (cpu_accounts_snapshot == vm.accounts) {
-        printf("CPU & GPU accounts state equal");
-    } else {
-        printf("CPU & GPU accounts state NOT equal");
-    }
+    // for (size_t i = 0; i < vm.accounts.size(); ++i) {
+    //     std::cout << "Account " << i << ": ";
+    //     vm.accounts[i].display();
+    //     std::cout << std::endl;
+    // }
 
+    // if (cpu_accounts_snapshot == vm.accounts) {
+    //     printf("CPU & GPU accounts state equal\n");
+    // } else {
+    //     printf("CPU & GPU accounts state NOT equal\n");
+    // }
 }

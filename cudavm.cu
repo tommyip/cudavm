@@ -214,8 +214,8 @@ int CudaVM::register_account(Account account) {
 
 void CudaVM::schedule_invocation(
     int program_id,
-    std::vector<int>& args,
-    std::vector<int>& account_indices
+    std::vector<int> args,
+    std::vector<int> account_indices
 ) {
     this->invocations.push_back(ScheduledInvocation { program_id, args, account_indices });
 }
@@ -243,14 +243,18 @@ void CudaVM::execute_parallel() {
     auto opt_start = clock_start();
     Chunks *chunks = this->optimize_invocation_order();
     auto opt_secs = clock_end(opt_start);
-    debug_printf("chunks=%d max_chunk=%d cpu_chunk_size=%d\n",
-        chunks->gpu_indices.size() - 1,
-        chunks->gpu_indices[0].size(),
-        chunks->cpu_indices.size());
-    debug_printf("txns optimization duration: %fs\n", opt_secs);
-    int max_invocation_size = sizeof(int) * chunks->gpu_indices[0].size();
+    auto max_chunk = std::max_element(
+        chunks->gpu_indices.begin(),
+        chunks->gpu_indices.end(),
+        [](std::vector<int>& a, std::vector<int>& b) { return a.size() < b.size(); });
+    int max_invocation_size = sizeof(int) * max_chunk->size();
     int *d_invocations;
     gpuErrchk(cudaMalloc(&d_invocations, max_invocation_size));
+    debug_printf("chunks=%d max_chunk=%d cpu_chunk_size=%d\n",
+        chunks->gpu_indices.size(),
+        max_chunk->size(),
+        chunks->cpu_indices.size());
+    debug_printf("txns optimization duration: %fs\n", opt_secs);
 
     std::vector<OpCode> h_global_instructions;
     h_global_instructions.reserve(n_programs * MAX_INSTRUCTIONS);
@@ -260,7 +264,7 @@ void CudaVM::execute_parallel() {
 
     for (auto& program : this->programs) {
         push_with_padding(program.instructions, h_global_instructions, MAX_INSTRUCTIONS, OpCode::NoOp);
-        push_with_padding(program.constant_pool, h_global_constant_pool, MAX_CONSTANTS, 0);
+        push_with_padding(program.constant_pool, h_global_constant_pool, MAX_CONSTANTS, -1);
     }
 
     std::vector<int> h_global_program_id;
@@ -275,7 +279,7 @@ void CudaVM::execute_parallel() {
     for (auto& invocation : this->invocations) {
         h_global_program_id.push_back(invocation.program_id);
 
-        push_with_padding(invocation.args, h_global_args, MAX_ARGUMENTS, 0);
+        push_with_padding(invocation.args, h_global_args, MAX_ARGUMENTS, -1);
         push_with_padding(invocation.account_indices, h_global_account_indices, MAX_ACCOUNTS, -1);
     }
 
@@ -356,8 +360,9 @@ Chunks::Chunks(int max_chunks, int max_chunk_size)
     : max_chunks(max_chunks), max_chunk_size(max_chunk_size) {}
 
 void Chunks::add_invocation(int i, ScheduledInvocation& invocation) {
-    int j;
-    for (j = 0; j < this->gpu_indices.size(); ++j) {
+    // TODO Turn this into a column search
+    int j = 0;
+    for ( ; j < this->gpu_indices.size(); ++j) {
         bool is_disjoint = true;
 
         for (int k = 0; k < invocation.account_indices.size(); ++k) {

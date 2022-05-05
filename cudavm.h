@@ -41,14 +41,14 @@ public:
     int register_account(Account account);
     void schedule_invocation(
         int program_id,
-        std::vector<int>& args,
-        std::vector<int>& account_indices
+        std::vector<int> args,
+        std::vector<int> account_indices
     );
     void execute_serial();
     void execute_parallel();
 
     std::vector<Account> accounts;
-
+    std::vector<ScheduledInvocation> invocations;
     // Feature flags
     bool group_independent_txns = false;
     // bool group_programs = false; // TODO: Write more programs!
@@ -58,7 +58,7 @@ private:
     void execute_serial(std::vector<int>& invocation_indices);
 
     std::vector<Program> programs;
-    std::vector<ScheduledInvocation> invocations;
+    
 };
 
 template<typename T>

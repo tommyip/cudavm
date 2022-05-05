@@ -1,5 +1,5 @@
-cudavm: main.o vm.o cudavm.o simulator.o
-	nvcc -arch sm_52 main.o vm.o cudavm.o simulator.o -o cudavm
+cudavm: main.o vm.o cudavm.o simulator.o contracts.o
+	nvcc -std=c++11 -arch sm_52 main.o vm.o cudavm.o simulator.o contracts.o -o cudavm
 
 main.o: main.cpp utils.h
 	nvcc -std=c++11 -arch sm_52 -x cu -c main.cpp -o main.o
@@ -13,8 +13,11 @@ cudavm.o: cudavm.cu cudavm.h vm.h utils.h
 simulator.o: simulator.cpp simulator.h contracts.h cudavm.h utils.h
 	nvcc -std=c++11 -arch sm_52 -x cu -c simulator.cpp -o simulator.o
 
+contracts.o: contracts.cpp contracts.h
+	nvcc -std=c++11 -arch sm_52 -x cu -c contracts.cpp -o contracts.o
+
 run: cudavm
 	./cudavm
 
 clean:
-	rm -f main.o vm.o cudavm.o simulator.o cudavm
+	rm -f main.o vm.o cudavm.o simulator.o contracts.o cudavm

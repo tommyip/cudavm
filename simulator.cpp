@@ -1,5 +1,6 @@
 #include <random>
 #include <vector>
+#include <algorithm>
 
 #include "contracts.h"
 #include "simulator.h"
@@ -19,14 +20,16 @@ void generate_transactions(
     CudaVM& vm,
     size_t n_pools,
     size_t n_swappers,
-    size_t n_transactions
+    size_t n_swap_txns,
+    size_t n_payment_txns
 ) {
     std::random_device rd;
     std::mt19937 mt(rd());
 
     int constant_swap_id = vm.register_program(constant_swap());
+    int payment_id = vm.register_program(payment());
 
-    std::normal_distribution<double> pool_dist(10000000000.0, 100000.0);
+    std::normal_distribution<double> pool_dist(10000000.0, 10000.0);
     std::vector<Pool> pools;
     for (size_t i = 0; i < n_pools; ++i) {
         Account pool_tok1;
@@ -38,7 +41,7 @@ void generate_transactions(
         pools.push_back(Pool { tok1_reserve_idx, tok2_reserve_idx });
     }
 
-    std::normal_distribution<double> swapper_dist(1000000.0, 100000.0);
+    std::normal_distribution<double> swapper_dist(100000.0, 10000.0);
     std::uniform_int_distribution<size_t> pool_idx_dist(0, n_pools - 1);
     std::vector<Swapper> swappers;
     for (size_t i = 0; i < n_swappers; ++i) {
@@ -55,7 +58,7 @@ void generate_transactions(
     std::uniform_int_distribution<size_t> swapper_idx_dist(0, n_swappers - 1);
     std::normal_distribution<double> swap_amount_dist(100000.0, 10000.0);
     std::uniform_int_distribution<char> direction_dist(0, 1);
-    for (size_t i = 0; i < n_transactions; ++i) {
+    for (size_t i = 0; i < n_swap_txns; ++i) {
         Swapper& swapper = swappers[swapper_idx_dist(mt)];
         Pool& pool = pools[swapper.pool_idx];
         std::vector<int> args{(int)swap_amount_dist(mt)};
@@ -76,4 +79,24 @@ void generate_transactions(
         }
         vm.schedule_invocation(constant_swap_id, args, account_indices);
     }
+
+    std::normal_distribution<double> payment_amount_dist(1000.0, 100.0);
+    for (size_t i = 0; i < n_payment_txns; ++i) {
+        int payer_idx = swapper_idx_dist(mt);
+        Swapper& payer = swappers[payer_idx];
+        int payer_wallet_idx = i % 2 == 0 ? payer.tok1_wallet_idx : payer.tok2_wallet_idx;
+
+        int payee_idx = swapper_idx_dist(mt);
+        if (payee_idx == payer_idx) {
+            payee_idx = (payee_idx + 1) % n_swappers;
+        }
+        Swapper& payee = swappers[payee_idx];
+        int payee_wallet_idx = i % 2 == 0 ? payee.tok1_wallet_idx : payee.tok2_wallet_idx;
+
+        std::vector<int> args{(int)payment_amount_dist(mt)};
+        std::vector<int> account_indices{payer_wallet_idx, payee_wallet_idx};
+        vm.schedule_invocation(payment_id, args, account_indices);
+    }
+
+    std::shuffle(vm.invocations.begin(), vm.invocations.end(), mt);
 }
