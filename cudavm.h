@@ -15,6 +15,7 @@ inline void gpuAssert(cudaError_t code, const char *file, int line, bool abort=t
 #include "vm.h"
 
 const size_t BLOCK_SIZE = 128;
+const size_t WARP_SIZE = 32;
 
 struct ScheduledInvocation {
     int program_id;
@@ -23,16 +24,19 @@ struct ScheduledInvocation {
 };
 
 class Chunks {
+    const int max_programs;
     const int max_chunks;
-    const int max_chunk_size;
+    const int max_accounts;
     std::vector<bool> allocated_accounts;
 
 public:
-    std::vector<std::vector<int>> gpu_indices;
+    // chunks -> programs -> indices
+    std::vector<std::vector<std::vector<int>>> gpu_indices;
     std::vector<int> cpu_indices;
 
-    Chunks(int max_chunks, int max_chunk_size);
+    Chunks(int max_programs, int max_chunks, int max_accounts);
     void add_invocation(int i, ScheduledInvocation& invocation);
+    int max_chunk_size();
 };
 
 class CudaVM {
@@ -58,7 +62,6 @@ private:
     void execute_serial(std::vector<int>& invocation_indices);
 
     std::vector<Program> programs;
-    
 };
 
 template<typename T>

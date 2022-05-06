@@ -27,6 +27,7 @@ void cuda_eval(
     int tid = blockDim.x * blockIdx.x + threadIdx.x;
     if (tid >= n_invocations) return;
     int invocation_id = invocations[tid];
+    if (invocation_id == -1) return;
 
     int program_id = global_program_id[invocation_id];
     OpCode *instructions = &global_instructions[program_id * MAX_INSTRUCTIONS];
@@ -243,16 +244,13 @@ void CudaVM::execute_parallel() {
     auto opt_start = clock_start();
     Chunks *chunks = this->optimize_invocation_order();
     auto opt_secs = clock_end(opt_start);
-    auto max_chunk = std::max_element(
-        chunks->gpu_indices.begin(),
-        chunks->gpu_indices.end(),
-        [](std::vector<int>& a, std::vector<int>& b) { return a.size() < b.size(); });
-    int max_invocation_size = sizeof(int) * max_chunk->size();
+    auto max_chunk_size = chunks->max_chunk_size();
+    int max_invocation_size = sizeof(int) * max_chunk_size;
     int *d_invocations;
     gpuErrchk(cudaMalloc(&d_invocations, max_invocation_size));
     debug_printf("chunks=%d max_chunk=%d cpu_chunk_size=%d\n",
         chunks->gpu_indices.size(),
-        max_chunk->size(),
+        max_chunk_size,
         chunks->cpu_indices.size());
     debug_printf("txns optimization duration: %fs\n", opt_secs);
 
@@ -331,13 +329,21 @@ void CudaVM::execute_parallel() {
     dim3 block_dim(BLOCK_SIZE, 1, 1);
 
     for (int i = 0; i < chunks->gpu_indices.size(); ++i) {
-        auto& invocations = chunks->gpu_indices[i];
-        gpuErrchk(cudaMemcpy(d_invocations, invocations.data(), sizeof(int) * invocations.size(), cudaMemcpyHostToDevice));
+        size_t offset = 0;
+        auto& chunk = chunks->gpu_indices[i];
+        for (int i = 0; i < chunk.size(); ++i) {
+            auto& group = chunk[i];
+            if (group.size() > 0) {
+                group.resize(((group.size() / WARP_SIZE) + 1) * WARP_SIZE, -1);
+                gpuErrchk(cudaMemcpy(d_invocations + offset, group.data(), sizeof(int) * group.size(), cudaMemcpyHostToDevice));
+                offset += group.size();
+            }
+        }
 
-        dim3 grid_dim(ceil_div(invocations.size(), BLOCK_SIZE), 1, 1);
+        dim3 grid_dim(ceil_div(offset, BLOCK_SIZE), 1, 1);
         cuda_eval<<<grid_dim, block_dim>>>(
             d_invocations,
-            invocations.size(),
+            offset,
             d_global_instructions,
             d_global_constant_pool,
             d_global_program_id,
@@ -356,8 +362,8 @@ void CudaVM::execute_parallel() {
     }
 }
 
-Chunks::Chunks(int max_chunks, int max_chunk_size)
-    : max_chunks(max_chunks), max_chunk_size(max_chunk_size) {}
+Chunks::Chunks(int max_programs, int max_chunks, int max_accounts)
+    : max_programs(max_programs), max_chunks(max_chunks), max_accounts(max_accounts) {}
 
 void Chunks::add_invocation(int i, ScheduledInvocation& invocation) {
     // TODO Turn this into a column search
@@ -366,36 +372,51 @@ void Chunks::add_invocation(int i, ScheduledInvocation& invocation) {
         bool is_disjoint = true;
 
         for (int k = 0; k < invocation.account_indices.size(); ++k) {
-            if (this->allocated_accounts[j * this->max_chunk_size + invocation.account_indices[k]]) {
+            if (this->allocated_accounts[j * this->max_accounts + invocation.account_indices[k]]) {
                 is_disjoint = false;
                 break;
             }
         }
         if (is_disjoint) {
             for (int k = 0; k < invocation.account_indices.size(); ++k) {
-                this->allocated_accounts[j * this->max_chunk_size + invocation.account_indices[k]] = true;
+                this->allocated_accounts[j * this->max_accounts + invocation.account_indices[k]] = true;
             }
-            this->gpu_indices[j].push_back(i);
+            this->gpu_indices[j][invocation.program_id].push_back(i);
             return;
         }
     }
     if (j < this->max_chunks) {
-        this->allocated_accounts.resize(this->allocated_accounts.size() + this->max_chunk_size, false);
+        this->allocated_accounts.resize(this->allocated_accounts.size() + this->max_accounts, false);
         for (int k = 0; k < invocation.account_indices.size(); ++k) {
-            this->allocated_accounts[j * this->max_chunk_size + invocation.account_indices[k]] = true;
+            this->allocated_accounts[j * this->max_accounts + invocation.account_indices[k]] = true;
         }
-        this->gpu_indices.push_back(std::vector<int>{i});
+        this->gpu_indices.push_back(std::vector<std::vector<int>>(this->max_programs, std::vector<int>()));
+        this->gpu_indices[this->gpu_indices.size() - 1][invocation.program_id].push_back(i);
     } else {
         this->cpu_indices.push_back(i);
     }
 }
 
+int chunk_size_with_padding(const std::vector<std::vector<int>>& chunk) {
+    auto map_reduce = [](const size_t previous, const std::vector<int>& group) {
+        return previous + ((group.size() / WARP_SIZE) + 1) * WARP_SIZE;
+    };
+    return std::accumulate(chunk.begin(), chunk.end(), 0, map_reduce);
+}
+
+int Chunks::max_chunk_size() {
+    std::vector<int> chunk_size;
+    std::transform(this->gpu_indices.begin(), this->gpu_indices.end(), std::back_inserter(chunk_size),
+        chunk_size_with_padding);
+    return *std::max_element(chunk_size.begin(), chunk_size.end());
+}
+
 // 1. Group transactions s.t. all accounts in each chunk are disjoint
 //    This prevents race condition
-// 2. Group transactions within each chunk by program into thread blocks
+// 2. Group transactions within each chunk by program
 // 3. Chunks smaller then BLOCK_SIZE are merged together to be executed on CPU
 Chunks* CudaVM::optimize_invocation_order() {
-    Chunks *chunks = new Chunks(256, this->accounts.size());
+    Chunks *chunks = new Chunks(this->programs.size(), 256, this->accounts.size());
     for (int i = 0; i < this->invocations.size(); ++i) {
         chunks->add_invocation(i, this->invocations[i]);
     }
