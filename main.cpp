@@ -9,8 +9,8 @@
 
 const size_t N_POOLS = 1000;
 const size_t N_SWAPPERS = 10000;
-const size_t N_SWAP_TXNS = 10000;
-const size_t N_PAYMENT_TXNS = 10000;
+const size_t N_SWAP_TXNS = 100000;
+const size_t N_PAYMENT_TXNS = 500000;
 const size_t N_TXNS = N_SWAP_TXNS + N_PAYMENT_TXNS;
 
 int main() {

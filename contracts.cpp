@@ -1,5 +1,18 @@
 #include "contracts.h"
 
+// Add some useless instructions to a contract to simulate a larger and
+// more realistic program found in conventional blockchains.
+// This also allow us to test how program size affects the speed up.
+void add_useless_ops(Program& prog, int n_ops) {
+    int cycle = n_ops / 6;
+    for (int i = 0; i < cycle; ++i) {
+        prog.Const(32);
+        prog.Const(5);
+        prog.Pow();
+        prog.Assert();
+    }
+}
+
 // Constant Product AMM
 //
 // Accounts:
@@ -68,6 +81,8 @@ Program constant_swap() {
     prog.Dup(); prog.Const(-1); prog.Rot(); prog.Lt(); prog.Assert();
     prog.Const(2); prog.Const(0); prog.Store();
 
+    add_useless_ops(prog, MAX_INSTRUCTIONS - prog.instructions.size());
+
     return prog;
 }
 
@@ -98,6 +113,8 @@ Program payment() {
     prog.Const(0); prog.Arg();
     prog.Add();
     prog.Const(1); prog.Const(0); prog.Store();
+
+    add_useless_ops(prog, MAX_INSTRUCTIONS - prog.instructions.size());
 
     return prog;
 }

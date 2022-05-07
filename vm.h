@@ -8,7 +8,7 @@
 
 const size_t STACK_SIZE = 16;
 const size_t ACCOUNT_SIZE = 8;
-const size_t MAX_INSTRUCTIONS = 256;
+const size_t MAX_INSTRUCTIONS = 1024;
 const size_t MAX_ACCOUNTS = 8;
 const size_t MAX_CONSTANTS = 8;
 const size_t MAX_ARGUMENTS = 8;
