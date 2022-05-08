@@ -4,4 +4,3 @@
 
 Program constant_swap();
 Program payment();
-Program oracle();

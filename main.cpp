@@ -48,10 +48,4 @@ int main() {
     //     vm.accounts[i].display();
     //     std::cout << std::endl;
     // }
-
-    // if (cpu_accounts_snapshot == vm.accounts) {
-    //     printf("CPU & GPU accounts state equal\n");
-    // } else {
-    //     printf("CPU & GPU accounts state NOT equal\n");
-    // }
 }

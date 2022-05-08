@@ -53,9 +53,6 @@ public:
 
     std::vector<Account> accounts;
     std::vector<ScheduledInvocation> invocations;
-    // Feature flags
-    bool group_independent_txns = false;
-    // bool group_programs = false; // TODO: Write more programs!
 
 private:
     Chunks* optimize_invocation_order();

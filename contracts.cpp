@@ -118,9 +118,3 @@ Program payment() {
 
     return prog;
 }
-
-Program oracle() {
-    // TODO
-    Program prog;
-    return prog;
-}
