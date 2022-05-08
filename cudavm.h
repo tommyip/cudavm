@@ -49,13 +49,13 @@ public:
         std::vector<int> account_indices
     );
     void execute_serial();
-    void execute_parallel();
+    void execute_parallel(Chunks* chunk);
+    Chunks* optimize_invocation_order();
 
     std::vector<Account> accounts;
     std::vector<ScheduledInvocation> invocations;
 
 private:
-    Chunks* optimize_invocation_order();
     void execute_serial(std::vector<int>& invocation_indices);
 
     std::vector<Program> programs;

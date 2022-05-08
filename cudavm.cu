@@ -236,23 +236,15 @@ void CudaVM::execute_serial(std::vector<int>& invocation_indices) {
     }
 }
 
-void CudaVM::execute_parallel() {
+void CudaVM::execute_parallel(Chunks* chunks) {
     size_t n_programs = this->programs.size();
     size_t n_invocations = this->invocations.size();
     debug_printf("execute_parallel n_programs=%d n_invocations=%d\n", n_programs, n_invocations);
 
-    auto opt_start = clock_start();
-    Chunks *chunks = this->optimize_invocation_order();
-    auto opt_secs = clock_end(opt_start);
     auto max_chunk_size = chunks->max_chunk_size();
     int max_invocation_size = sizeof(int) * max_chunk_size;
     int *d_invocations;
     gpuErrchk(cudaMalloc(&d_invocations, max_invocation_size));
-    debug_printf("chunks=%d max_chunk=%d cpu_chunk_size=%d\n",
-        chunks->gpu_indices.size(),
-        max_chunk_size,
-        chunks->cpu_indices.size());
-    debug_printf("txns optimization duration: %fs\n", opt_secs);
 
     std::vector<OpCode> h_global_instructions;
     h_global_instructions.reserve(n_programs * MAX_INSTRUCTIONS);
